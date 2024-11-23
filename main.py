@@ -16,13 +16,13 @@ def load_data(contents, filename):
     try:
         if 'xls' in filename:
             df = pd.read_excel(io.BytesIO(decoded))
-    pitch_log_df = pitch_log_df.dropna(subset=['Situation'])
-    pitch_log_df['Count'] = pitch_log_df['Situation'].str.extract(r'(\d-\d)', expand=False)
-    pitch_log_df['Pitch Result'] = pitch_log_df['Pitch Result'].str.strip()
-    pitch_log_df['Pitch Type'] = pitch_log_df['Pitch Type'].str.strip()
-    pitch_log_df['Batter Hand'] = pitch_log_df['Batter'].str.extract(r'\((R|L)\)', expand=False)
-    pitch_log_df = pitch_log_df.dropna(subset=['Batter Hand'])
-    return df
+            pitch_log_df = pitch_log_df.dropna(subset=['Situation'])
+            pitch_log_df['Count'] = pitch_log_df['Situation'].str.extract(r'(\d-\d)', expand=False)
+            pitch_log_df['Pitch Result'] = pitch_log_df['Pitch Result'].str.strip()
+            pitch_log_df['Pitch Type'] = pitch_log_df['Pitch Type'].str.strip()
+            pitch_log_df['Batter Hand'] = pitch_log_df['Batter'].str.extract(r'\((R|L)\)', expand=False)
+            pitch_log_df = pitch_log_df.dropna(subset=['Batter Hand'])
+            return df
     except Exception as e:
         print(e)
         return None

@@ -3,18 +3,29 @@ import networkx as nx
 import plotly.graph_objects as go
 import dash
 from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
+import dash_core_components as dcc
+import dash_html_components as html
+import base64
+import io
 
 # Load the data
-def load_data(file_path):
-    pitch_log_df = pd.read_excel(file_path)
+def load_data(contents, filename):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'xls' in filename:
+            df = pd.read_excel(io.BytesIO(decoded))
     pitch_log_df = pitch_log_df.dropna(subset=['Situation'])
     pitch_log_df['Count'] = pitch_log_df['Situation'].str.extract(r'(\d-\d)', expand=False)
     pitch_log_df['Pitch Result'] = pitch_log_df['Pitch Result'].str.strip()
     pitch_log_df['Pitch Type'] = pitch_log_df['Pitch Type'].str.strip()
     pitch_log_df['Batter Hand'] = pitch_log_df['Batter'].str.extract(r'\((R|L)\)', expand=False)
     pitch_log_df = pitch_log_df.dropna(subset=['Batter Hand'])
-    return pitch_log_df
+    return df
+    except Exception as e:
+        print(e)
+        return None
 
 # Calculate swing percentages
 def calculate_swing_percentage(df):
@@ -192,9 +203,29 @@ app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
 
-# Dash layout
 app.layout = html.Div([
     html.H1('Interactive Plinko Chart', style={'textAlign': 'center', 'font-family': 'Arial'}),
+    html.Div([
+        dcc.Upload(
+            id='upload-data',
+            children=html.Div([
+                'Drag and Drop or ',
+                html.A('Select PitchLog.xlsx File')
+            ]),
+            style={
+                'width': '98%',
+                'height': '60px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            multiple=False
+        ),
+        html.Div(id='output-data-upload')
+    ]),
     html.Div([
         dcc.Dropdown(
             id='batter-hand-dropdown',
@@ -205,7 +236,7 @@ app.layout = html.Div([
             ],
             value='B',
             placeholder='Select Batter Hand',
-            style={'width': '48%', 'display': 'inline-block'}
+            style={'width': '30%', 'display': 'inline-block'}
         ),
         dcc.Dropdown(
             id='color-option-dropdown',
@@ -216,26 +247,54 @@ app.layout = html.Div([
             ],
             value='frequency',
             placeholder='Color Nodes Based On',
-            style={'width': '48%', 'display': 'inline-block', 'marginLeft': '10px'}
+            style={'width': '30%', 'display': 'inline-block', 'marginLeft': '10px'}
+        ),
+        dcc.Dropdown(
+            id='pitch-type-dropdown',
+            placeholder='Select Pitch Type',
+            style={'width': '30%', 'display': 'inline-block', 'marginLeft': '10px'}
         )
     ], style={'padding': '20px', 'textAlign': 'center'}),
     dcc.Graph(id='plinko-graph')
 ])
 
+
 # Callback to update the graph
 @app.callback(
-    Output('plinko-graph', 'figure'),
-    [Input('batter-hand-dropdown', 'value'),
-     Input('color-option-dropdown', 'value')]
+    [Output('plinko-graph', 'figure'),
+     Output('pitch-type-dropdown', 'options'),
+     Output('pitch-type-dropdown', 'value')],
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename'),
+     Input('batter-hand-dropdown', 'value'),
+     Input('color-option-dropdown', 'value'),
+     Input('pitch-type-dropdown', 'value')]
 )
-def update_chart(batter_hand, color_option):
-    df = load_data('PitchLog.xlsx')
 
+def update_chart(contents, filename, batter_hand, color_option, pitch_type):
+    if contents is None:
+        # Return an empty figure and empty pitch type options
+        return go.Figure(), [], None
+
+    df = load_data(contents, filename)
+    if df is None:
+        return go.Figure(), [], None
+
+    # Dynamically generate pitch type options based on the data
+    pitch_types = [{'label': 'All', 'value': 'All'}] + \
+                  [{'label': pt, 'value': pt} for pt in sorted(df['Pitch Type'].unique())]
+
+    # Set default pitch type if none is selected
+    if pitch_type is None:
+        pitch_type = 'All'
+
+    # Filter by batter hand
     if batter_hand != 'B':
         df = df[df['Batter Hand'] == batter_hand]
 
-    fig = process_batter_hand(df, batter_hand, color_option)
-    return fig
+    # Filter by pitch type
+    if pitch_type != 'All':
+        df = df[df['Pitch Type'] == pitch_type]
 
-if __name__ == '__main__':
-    app.run_server(host="0.0.0.0", debug=True)
+    fig = process_batter_hand(df, batter_hand, color_option)
+    return fig, pitch_types, pitch_type

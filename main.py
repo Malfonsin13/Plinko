@@ -4,28 +4,27 @@ import plotly.graph_objects as go
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
-import dash_core_components as dcc
-import dash_html_components as html
 import base64
 import io
 
-# Load the data
+
 def load_data(contents, filename):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
     try:
         if 'xls' in filename:
             df = pd.read_excel(io.BytesIO(decoded))
-            pitch_log_df = pitch_log_df.dropna(subset=['Situation'])
-            pitch_log_df['Count'] = pitch_log_df['Situation'].str.extract(r'(\d-\d)', expand=False)
-            pitch_log_df['Pitch Result'] = pitch_log_df['Pitch Result'].str.strip()
-            pitch_log_df['Pitch Type'] = pitch_log_df['Pitch Type'].str.strip()
-            pitch_log_df['Batter Hand'] = pitch_log_df['Batter'].str.extract(r'\((R|L)\)', expand=False)
-            pitch_log_df = pitch_log_df.dropna(subset=['Batter Hand'])
+            df = df.dropna(subset=['Situation'])
+            df['Count'] = df['Situation'].str.extract(r'(\d-\d)', expand=False)
+            df['Pitch Result'] = df['Pitch Result'].str.strip()
+            df['Pitch Type'] = df['Pitch Type'].str.strip()
+            df['Batter Hand'] = df['Batter'].str.extract(r'\((R|L)\)', expand=False)
+            df = df.dropna(subset=['Batter Hand'])
             return df
     except Exception as e:
         print(e)
         return None
+
 
 # Calculate swing percentages
 def calculate_swing_percentage(df):
@@ -298,3 +297,7 @@ def update_chart(contents, filename, batter_hand, color_option, pitch_type):
 
     fig = process_batter_hand(df, batter_hand, color_option)
     return fig, pitch_types, pitch_type
+
+if __name__ == '__main__':
+    app.run_server(debug=True, host='0.0.0.0', port=8080)
+

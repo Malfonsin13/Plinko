@@ -1,5 +1,8 @@
+dash
+plotly
 pandas
 numpy
-matplotlib
-ipywidgets
-voila
+ipywidgets==8.1.1
+voila==0.5.5
+jupyterlab==4.4.5
+
